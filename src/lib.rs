@@ -1,9 +1,10 @@
 use std::collections::HashMap;
-use std::ffi::c_void;
+use std::ffi::{c_void, CStr};
 
 use pyo3::prelude::*;
 
 use num_traits::Float;
+use pyo3::types::PyCapsule;
 
 #[inline]
 fn sincos<T: Float>(x: &T, sx: &mut T, cx: &mut T) {
@@ -56,10 +57,30 @@ pub extern "C" fn cpu_kepler<T: Float>(out_tuple: *mut c_void, in_: *const *cons
     }
 }
 
-/// Prints a message.
+extern "C" fn destructor(_: *mut pyo3::ffi::PyObject) {}
+
+fn encapsulate_function(
+    py: Python,
+    ptr: extern "C" fn(*mut c_void, *const *const c_void),
+) -> PyResult<&PyCapsule> {
+    let name: &'static CStr = CStr::from_bytes_with_nul(b"xla._CUSTOM_CALL_TARGET\0").unwrap();
+    unsafe {
+        let cap_ptr = pyo3::ffi::PyCapsule_New(ptr as *mut c_void, name.as_ptr(), Some(destructor));
+        py.from_owned_ptr_or_err(cap_ptr)
+    }
+}
+
 #[pyfunction]
-fn registrations() -> PyResult<HashMap<String, fn(*mut c_void, *const *const c_void)>> {
+fn registrations(py: Python) -> PyResult<HashMap<String, &PyCapsule>> {
     let mut dict = HashMap::new();
+    dict.insert(
+        "cpu_kepler_f32".to_owned(),
+        encapsulate_function(py, cpu_kepler::<f32>)?,
+    );
+    dict.insert(
+        "cpu_kepler_f64".to_owned(),
+        encapsulate_function(py, cpu_kepler::<f64>)?,
+    );
     Ok(dict)
 }
 
