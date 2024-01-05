@@ -7,11 +7,9 @@
 #   all-features: false
 
 -e file:.
-importlib-metadata==7.0.1
 jax==0.4.23
 jaxlib==0.4.23
 ml-dtypes==0.3.1
 numpy==1.26.2
 opt-einsum==3.3.0
 scipy==1.11.4
-zipp==3.17.0
